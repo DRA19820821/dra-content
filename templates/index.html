@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing AI System - Gerador de Conteúdos</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🚀 Marketing AI System</h1>
+            <p class="subtitle">Geração inteligente de conteúdos para produtos Hotmart usando LangGraph</p>
+        </header>
+
+        <!-- Configuração de Provedores -->
+        <section class="section config-providers">
+            <h2>⚙️ Configuração de Provedores</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="llm-provider">LLM para Texto</label>
+                    <select id="llm-provider">
+                        <option value="anthropic" selected>Anthropic (Claude Sonnet 4.5)</option>
+                        <option value="openai">OpenAI (GPT-5)</option>
+                        <option value="google">Google (Gemini 2.5 Plus)</option>
+                        <option value="deepseek">DeepSeek (v3)</option>
+                        <option value="grok">Grok (2.0)</option>
+                        <option value="qwen">Qwen (QwQ-32B-Preview)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="image-provider">Gerador de Imagens</label>
+                    <select id="image-provider">
+                        <option value="openai" selected>OpenAI (GPT Image 1)</option>
+                        <option value="google">Google (Imagen 3 - Nano Banana)</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- Formulário Principal -->
+        <section class="section">
+            <h2>📝 Dados do Produto</h2>
+            
+            <div class="form-group">
+                <label for="radical">Radical *</label>
+                <input type="text" id="radical" placeholder="Ex: dAdm, dConst, dCiv" required>
+                <small>String alfanumérica que identifica o produto</small>
+            </div>
+
+            <div class="form-group">
+                <label for="insumos">Insumos do Produto *</label>
+                <textarea id="insumos" rows="6" placeholder="Cole aqui as informações base do produto (descrição, público-alvo, diferenciais, benefícios...)" required></textarea>
+                <small>Informações base que serão usadas para gerar os conteúdos</small>
+            </div>
+
+            <div class="form-group">
+                <label for="max-iteracoes">Máximo de Iterações</label>
+                <input type="number" id="max-iteracoes" value="3" min="1" max="10">
+                <small>Número máximo de ciclos de melhoria (revisão + correção)</small>
+            </div>
+        </section>
+
+        <!-- Checklist de Conteúdos -->
+        <section class="section">
+            <h2>✅ Conteúdos a Gerar</h2>
+            <div class="checklist">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="check-tipo" checked>
+                    <span>1. Tipo de Material (Classificação automática)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="check-desc-hotmart" checked>
+                    <span>2. Descrição Hotmart (máx. 1.800 caracteres)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="check-artigo" checked>
+                    <span>3. Artigo para Blog (HTML completo)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="check-legenda" checked>
+                    <span>4. Legenda Instagram</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="check-img-vert" checked>
+                    <span>5. Imagem Vertical (1080x1920px)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="check-img-quad" checked>
+                    <span>6. Imagem Quadrada (1080x1080px)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="check-nome" checked>
+                    <span>7. Nome Criativo (máx. 5 palavras)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="check-desc-pv">
+                    <span>8. Descrição Página de Vendas (máx. 25 palavras)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="check-extra">
+                    <span>9. Item Extra Customizado</span>
+                </label>
+            </div>
+
+            <div class="form-group" id="extra-field" style="display: none;">
+                <label for="prompt-extra">Prompt para Item Extra</label>
+                <textarea id="prompt-extra" rows="3" placeholder="Descreva o que você quer gerar no item extra..."></textarea>
+            </div>
+        </section>
+
+        <!-- Botão Gerar -->
+        <div class="action-bar">
+            <button id="btn-gerar" class="btn-primary">
+                🎯 Gerar Conteúdos
+            </button>
+            <div class="status-indicator" id="status">
+                <span class="status-dot"></span>
+                <span class="status-text">Pronto</span>
+            </div>
+        </div>
+
+        <!-- Área de Logs -->
+        <section class="section logs-section" id="logs-container" style="display: none;">
+            <h2>📋 Logs de Execução</h2>
+            <div class="logs" id="logs"></div>
+        </section>
+
+        <!-- Área de Resultados -->
+        <section class="section results-section" id="results-container" style="display: none;">
+            <h2>🎉 Resultados Gerados</h2>
+            
+            <div class="result-header">
+                <div class="result-info">
+                    <h3 id="result-nome"></h3>
+                    <p id="result-tipo"></p>
+                    <div class="result-meta">
+                        <span class="badge" id="result-nota"></span>
+                        <span class="badge" id="result-iteracoes"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="preview">📄 Preview</button>
+                <button class="tab" data-tab="desc-hotmart">🛒 Desc. Hotmart</button>
+                <button class="tab" data-tab="artigo">📝 Artigo</button>
+                <button class="tab" data-tab="legenda">📱 Legenda</button>
+                <button class="tab" data-tab="imagens">🖼️ Imagens</button>
+                <button class="tab" data-tab="json">📦 JSON</button>
+            </div>
+
+            <div class="tab-content active" id="tab-preview">
+                <div class="preview-grid">
+                    <div class="preview-card">
+                        <h4>Nome Criativo</h4>
+                        <p id="preview-nome"></p>
+                    </div>
+                    <div class="preview-card">
+                        <h4>Descrição PV</h4>
+                        <p id="preview-desc-pv"></p>
+                    </div>
+                    <div class="preview-card">
+                        <h4>Tipo de Material</h4>
+                        <p id="preview-tipo"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-desc-hotmart">
+                <div class="content-box">
+                    <p id="content-desc-hotmart"></p>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-artigo">
+                <div class="content-box" id="content-artigo"></div>
+            </div>
+
+            <div class="tab-content" id="tab-legenda">
+                <div class="content-box">
+                    <pre id="content-legenda"></pre>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-imagens">
+                <div class="images-grid" id="images-container">
+                    <p>Imagens serão exibidas aqui quando geradas</p>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-json">
+                <div class="content-box">
+                    <pre id="content-json"></pre>
+                </div>
+            </div>
+
+            <!-- Botões de Download -->
+            <div class="download-bar">
+                <button class="btn-download" id="btn-download-json">
+                    📥 Download JSON
+                </button>
+                <button class="btn-download" id="btn-download-images" style="display: none;">
+                    🖼️ Download Imagens
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
