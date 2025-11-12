@@ -68,17 +68,46 @@ async def root(request: Request):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket para logs em tempo real"""
+    """WebSocket para logs em tempo real E para iniciar geração"""
     await manager.connect(websocket)
     try:
         while True:
-            # Manter conexão aberta
-            await websocket.receive_text()
+            # Aguardar mensagem do cliente
+            data = await websocket.receive_text()
+            
+            try:
+                message = json.loads(data)
+                
+                # Verificar se é uma ação de 'gerar'
+                if message.get("action") == "gerar" and "config" in message:
+                    config_dict = message["config"]
+                    # Chamar o processamento. Ele mesmo envia os logs
+                    # e o resultado final pelo websocket.
+                    await processar_geracao(config_dict, websocket)
+                
+                # Se a mensagem não for 'gerar', ela é ignorada e o loop continua
+                
+            except json.JSONDecodeError:
+                await manager.send_log(
+                    json.dumps({"type": "error", "message": "❌ Erro: Mensagem inválida recebida"}),
+                    websocket
+                )
+            except Exception as e_process:
+                # Captura erros de 'processar_geracao'
+                await manager.send_log(
+                    json.dumps({"type": "error", "message": f"❌ Erro no processamento: {str(e_process)}"}),
+                    websocket
+                )
+
     except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e_ws:
+        # Captura erros do próprio websocket (ex: conexão perdida)
+        print(f"Erro no WebSocket: {e_ws}")
         manager.disconnect(websocket)
 
 
-async def gerar_imagem_openai(prompt: str, tamanho: str = "1024x1024") -> Optional[bytes]:
+async def gerar_imagem_openai(prompt: str, tamanho: str, websocket: WebSocket) -> Optional[bytes]:
     """Gera imagem usando GPT Image 1 (DALL-E 3)"""
     try:
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -90,26 +119,37 @@ async def gerar_imagem_openai(prompt: str, tamanho: str = "1024x1024") -> Option
         }
         dalle_size = size_map.get(tamanho, "1024x1024")
         
+        # 1. Gerar a imagem (sem 'response_format')
         response = client.images.generate(
-            model="dall-e-3",  # GPT Image 1
+            model="gpt-image-1",
             prompt=prompt,
             size=dalle_size,
-            quality="hd",  # Usar HD para melhor qualidade
-            n=1,
+            quality="hd",
+            n=1
+            # Removido o 'response_format' incorreto
         )
         
         image_url = response.data[0].url
+        if not image_url:
+            raise Exception("API da OpenAI não retornou URL da imagem")
         
-        # Baixar imagem
+        # 2. Baixar imagem da URL com httpx
         async with httpx.AsyncClient() as http_client:
             img_response = await http_client.get(image_url)
+            
             if img_response.status_code == 200:
+                # Sucesso, retornar os bytes
                 return img_response.content
-        
-        return None
+            else:
+                # Falha no download, levantar exceção
+                raise Exception(f"Falha ao baixar imagem da URL. Status: {img_response.status_code}")
         
     except Exception as e:
-        print(f"Erro ao gerar imagem GPT Image 1: {e}")
+        # Enviar log de erro (seja da API ou do download)
+        await manager.send_log(
+            json.dumps({"type": "error", "message": f"❌ Erro GPT Image 1: {str(e)}"}),
+            websocket
+        )
         return None
 
 
@@ -130,7 +170,7 @@ async def gerar_imagem_google(prompt: str, tamanho: str = "1024x1024") -> Option
         # Nota: Imagen 3 via API pode ter configurações específicas
         # Esta é uma implementação adaptável conforme a API do Google
         
-        model = genai.GenerativeModel('imagen-3')
+        model = genai.GenerativeModel('gemini-2.5-flash-image')
         
         # Ajustar prompt para melhor qualidade
         enhanced_prompt = f"{prompt} high quality, professional, modern design"
@@ -314,12 +354,6 @@ Público: Estudantes de concursos públicos e OAB"""
         )
         return None
 
-
-@app.post("/gerar")
-async def gerar_conteudo(config: dict, websocket: WebSocket):
-    """Endpoint para iniciar geração (chamado via WebSocket)"""
-    resultado = await processar_geracao(config, websocket)
-    return {"status": "success" if resultado else "error"}
 
 
 @app.get("/download/{folder}/{filename}")

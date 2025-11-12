@@ -81,9 +81,17 @@ function handleWebSocketMessage(data) {
                 break;
             case 'error':
                 addLog(message.message, 'error');
+                // ADICIONAR ESTAS LINHAS:
+                btnGerar.disabled = false;
+                btnGerar.textContent = '🎯 Gerar Conteúdos';
+                updateStatus('Erro', 'error');
                 break;
             case 'resultado':
                 exibirResultados(message.data);
+                // ADICIONAR ESTAS LINHAS:
+                btnGerar.disabled = false;
+                btnGerar.textContent = '🎯 Gerar Conteúdos';
+                updateStatus('Pronto', 'success');
                 break;
         }
     } catch (e) {
@@ -134,27 +142,7 @@ function iniciarGeracao() {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ action: 'gerar', config }));
         
-        // Iniciar geração via fetch (API)
-        fetch('/gerar', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(config)
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Geração finalizada:', data);
-        })
-        .catch(error => {
-            console.error('Erro na geração:', error);
-            addLog(`Erro: ${error.message}`, 'error');
-        })
-        .finally(() => {
-            btnGerar.disabled = false;
-            btnGerar.textContent = '🎯 Gerar Conteúdos';
-            updateStatus('Pronto', 'success');
-        });
+
     } else {
         alert('Conexão WebSocket não está disponível. Tente recarregar a página.');
         btnGerar.disabled = false;

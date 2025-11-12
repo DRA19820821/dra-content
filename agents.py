@@ -53,7 +53,7 @@ class MarketingAgents:
             )
         elif provider == "google":
             return ChatGoogleGenerativeAI(
-                model="gemini-2.5-plus",  # Gemini 2.5 Plus (mais recente)
+                model="gemini-2.5-pro",  # Gemini 2.5 Plus (mais recente)
                 temperature=0.7,
                 google_api_key=os.getenv("GOOGLE_API_KEY"),
                 max_tokens = MAX_TOKENS_
@@ -218,7 +218,7 @@ ESTILO:
 - Use linguagem que conecta e inspira
 - Destaque transformação e resultados
 
-Use o radical '{config.radical}' quando apropriado no contexto."""
+"""
 
         if config.gerar_extra and config.prompt_extra:
             prompt += f"\n\n**ITEM EXTRA CUSTOMIZADO**:\n{config.prompt_extra}"
